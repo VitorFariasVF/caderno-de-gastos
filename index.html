@@ -95,7 +95,7 @@
       <div class="field"><label for="r-mes">Mês</label><select id="r-mes"></select></div>
       <div class="field"><label for="r-cat">Categoria</label><select id="r-cat"></select></div>
       <button id="catsbtn" class="btn" type="button">Categorias e metas</button>
-      <button id="printbtn" class="btn" type="button">Baixar PDF</button>
+      <button id="printbtn" class="btn" type="button">Imprimir / salvar PDF</button>
     </div>
     <div id="rep"></div>
   </section>
@@ -112,6 +112,7 @@
         <button id="imp" class="btn" type="button">Importar planilha ou CSV</button>
         <button id="expzip" class="btn" type="button">Backup completo com fotos (.zip)</button>
       </div>
+      <p class="muted small">O backup completo (.zip) inclui as fotos, mas elas não voltam pelo “Importar”; só a planilha volta.</p>
       <p id="stor" class="muted small"></p>
     </div>
     <div class="card">
@@ -130,7 +131,7 @@
 
 <footer class="foot wrap wide">
   <span>© <span id="y"></span> Vitor Farias · <a href="https://github.com/VitorFariasVF">GitHub</a> · <a href="https://github.com/VitorFariasVF/VF-Tools/issues">Reportar problema</a></span>
-  <span>Gastos, fotos e senhas nunca são enviados a servidores; ficam neste navegador. <button class="link" id="resetdata" type="button">Limpar meus dados</button></span>
+  <span>Seus gastos e fotos ficam só neste navegador e nunca são enviados. Só o visual e o Doggy vêm do site VF Tools. <button class="link" id="resetdata" type="button">Limpar meus dados</button></span>
 </footer>
 
 <!-- Diálogo: gasto -->
@@ -143,7 +144,7 @@
         <div id="g-info" class="note-box" role="status" hidden></div>
         <div class="field"><label for="g-valor">Valor (R$)</label><input id="g-valor" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-describedby="g-valor-h g-err"><span id="g-valor-h" class="hint"></span></div>
         <label class="check"><input id="g-estorno" type="checkbox"> É estorno ou reembolso (entra como valor negativo)</label>
-        <div class="field"><label for="g-data">Data</label><input id="g-data" type="date"><span id="g-data-h" class="hint"></span></div>
+        <div class="field"><label for="g-data">Data</label><input id="g-data" type="date"><span id="g-data-h" class="hint" aria-live="polite"></span></div>
         <div class="field"><label for="g-estab">Estabelecimento</label><input id="g-estab" list="g-estab-l" autocomplete="off" maxlength="80"><datalist id="g-estab-l"></datalist></div>
         <fieldset class="chips-f"><legend>Categoria</legend><div id="g-cats" class="chips" role="radiogroup" aria-label="Categoria"></div></fieldset>
         <div class="xrow"><div class="field"><label for="g-pag">Pagamento</label><select id="g-pag"><option>Pix</option><option>Débito</option><option>Crédito</option><option>Dinheiro</option><option>Boleto</option><option>Outro</option></select></div>
@@ -154,11 +155,12 @@
         <figure id="g-photo" class="photo" hidden>
           <button id="g-zoom" type="button" class="photo-btn" aria-label="Ampliar ou reduzir a foto da nota"><img id="g-img" alt="Foto da nota para conferir os valores"></button>
           <figcaption><label class="check"><input id="g-keep" type="checkbox"> Guardar a foto como comprovante (ela pode mostrar CPF e dados pessoais)</label>
+          <small id="g-keephint" class="muted">A foto não será guardada: ela só serve para conferir agora.</small>
           <button id="g-rmphoto" class="link" type="button">Remover foto</button></figcaption>
         </figure>
       </div>
     </div>
-    <div class="udlg-actions"><button id="g-del" class="btn danger" type="button" hidden>Excluir</button><button id="g-cancel" class="btn" type="button">Cancelar</button><button id="g-save2" class="btn" type="button" hidden>Salvar e outra</button><button id="g-save" class="btn primary" type="submit">Salvar</button></div>
+    <div class="udlg-actions"><button id="g-stopq" class="btn" type="button" hidden>Parar fila</button><button id="g-del" class="btn danger" type="button" hidden>Excluir</button><button id="g-cancel" class="btn" type="button">Cancelar</button><button id="g-save2" class="btn" type="button" hidden>Salvar e outra</button><button id="g-save" class="btn primary" type="submit">Salvar</button></div>
   </form>
 </dialog>
 
@@ -205,6 +207,16 @@
     <div id="d-out" aria-live="polite"></div>
     <div class="udlg-actions"><button id="d-close" class="btn primary" type="button">Fechar</button></div>
   </div>
+</dialog>
+
+<dialog id="wdlg" class="xdlg small" aria-labelledby="w-t">
+  <form id="w-form" novalidate>
+    <h2 id="w-t">Apagar tudo deste navegador?</h2>
+    <p class="muted">Isso apaga todos os gastos, categorias, fotos <strong>e versões</strong>. Não dá para desfazer. Baixe a planilha antes.</p>
+    <div class="row"><button id="w-dl" class="btn" type="button">Baixar planilha agora</button></div>
+    <div class="field"><label for="w-word">Para confirmar, digite APAGAR</label><input id="w-word" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+    <div class="udlg-actions"><button id="w-cancel" class="btn" type="button">Cancelar</button><button id="w-ok" class="btn danger" type="submit" disabled>Apagar tudo</button></div>
+  </form>
 </dialog>
 
 <div id="undo" class="undo" role="status" aria-live="polite" hidden><span id="undo-t"></span><button id="undo-b" class="btn" type="button">Desfazer</button></div>

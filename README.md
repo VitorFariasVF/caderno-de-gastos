@@ -17,12 +17,14 @@ Uma versão é uma cópia completa dos gastos e categorias (sem fotos). O cadern
 - Gastos, categorias, fotos e versões ficam no **IndexedDB** do navegador. O app pede armazenamento persistente.
 - **Fotos** vêm desmarcadas para guardar (podem mostrar CPF); a foto fica reduzida (até 1600 px). Elas não vão na planilha; o “Backup completo” (.zip) inclui a pasta `fotos/`.
 - Se o navegador limpar os dados do site, só a planilha baixada protege o caderno. O app avisa quando há alterações sem backup.
-- Ao abrir a página, o navegador baixa CSS e JavaScript compartilhados do VF Tools; depois de carregada (service worker), a ferramenta abre sem internet.
+- Seus gastos e fotos nunca são enviados. Ao abrir a página, o navegador baixa o CSS e os scripts do Doggy/animações compartilhados do site VF Tools (vitorfariasvf.github.io), o que revela seu IP a esse site; depois de carregada (service worker), a ferramenta abre sem internet.
+- “Apagar tudo” pede para digitar APAGAR e oferece baixar a planilha antes. As versões de segurança (antes de importar/restaurar) ficam limitadas às 10 mais recentes.
 
 ## Importar planilhas
 - Reconhece cabeçalhos como Data, Valor, Descrição/Estabelecimento, Categoria, Pagamento, Anotação, id. Valores como `R$ 1.234,56`, `1234.56` e `(50,00)` (estorno) e datas `dd/mm/aaaa`, `aaaa-mm-dd` ou do Excel.
 - Antes de importar, mostra: novos, atualizados, em conflito (o caderno tem versão mais nova), possíveis duplicados, sem mudança e linhas com erro.
-- Linhas com `id` conhecido atualizam o gasto; sem `id`, entram como novos (duplicados por data+valor+local ficam de fora, a menos que você marque).
+- Linhas com `id` conhecido atualizam **só as colunas que vieram na planilha** (o resto do gasto fica como está). Se a planilha não traz “Alterado em” (ou o caderno tem versão mais nova), a linha fica “em conflito” e só muda se você marcar a opção. Sem `id`, entram como novos (duplicados por data+valor+local ficam de fora, a menos que você marque).
+- CSV em UTF-8 ou Windows-1252 (Excel/bancos) é reconhecido.
 
 ## Limites e observações
 - **QR Code**: depende do `BarcodeDetector` (Chrome/Edge/Android). Em outros navegadores a foto serve de comprovante e os dados são digitados.

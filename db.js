@@ -44,6 +44,8 @@ window.Ver = (() => {
   async function prune() {
     const l = await list(), auto = l.filter(v => v.kind === "auto" || v.kind === "dia");
     for (const v of auto.slice(KEEP_AUTO)) await DB.del("versoes", v.id);
+    const safety = l.filter(v => v.kind === "pre-import" || v.kind === "pre-restore");   // mantém as 10 mais recentes
+    for (const v of safety.slice(10)) await DB.del("versoes", v.id);
   }
   const parse = v => JSON.parse(v.json);
   /* diferenças por id entre duas fotografias { gastos, categorias } */

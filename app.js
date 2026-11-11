@@ -15,15 +15,17 @@
   const showAlert = m => { alertBox.className = "state error"; alertBox.innerHTML = `<p>${esc(m)}</p><button class="link" type="button" id="alert-x">Dispensar</button>`; alertBox.hidden = false; $("#alert-x").onclick = () => { alertBox.hidden = true; }; };
   let undoTimer = null;
   function showUndo(text, fn) {
-    S.undoFn = fn; $("#undo-t").textContent = text; $("#undo").hidden = false; say(text + " Para desfazer, use o botão Desfazer.");
+    S.undoFn = fn; $("#undo-t").textContent = text; $("#undo").hidden = false; document.body.classList.add("has-undo"); say(text + " Para desfazer, use o botão Desfazer.");
     clearTimeout(undoTimer); undoTimer = setTimeout(hideUndo, 8000);
   }
-  function hideUndo() { $("#undo").hidden = true; S.undoFn = null; }
+  function hideUndo() { $("#undo").hidden = true; S.undoFn = null; document.body.classList.remove("has-undo"); }
   $("#undo").addEventListener("mouseenter", () => clearTimeout(undoTimer)); $("#undo").addEventListener("focusin", () => clearTimeout(undoTimer));
+  $("#undo").addEventListener("focusout", () => { clearTimeout(undoTimer); undoTimer = setTimeout(hideUndo, 6000); });
   $("#undo").addEventListener("mouseleave", () => { clearTimeout(undoTimer); undoTimer = setTimeout(hideUndo, 4000); });
   $("#undo-b").addEventListener("click", async () => { const f = S.undoFn; hideUndo(); if (f) { await f(); say("Desfeito."); } });
 
   /* ---------- dados ---------- */
+  function focusHeading() { const h = $("#v-" + S.view + " h2"); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } }
   const liveG = () => S.gastos.filter(g => !g.removido);
   const catOf = id => S.cats.find(c => c.id === id) || { id: "", nome: "Sem categoria", cor: "#b8ad9e", meta: 0 };
   const catByName = n => S.cats.find(c => norm(c.nome) === norm(n));
@@ -88,26 +90,31 @@
   const catOpts = (all = "Todas as categorias") => [["", all], ...S.cats.map(c => [c.id, c.nome])];
   function filtered() {
     const f = S.f, q = norm(f.q);
-    return liveG().filter(g => (!f.mes || CG.monthKey(g.data) === f.mes) && (!f.cat || g.categoriaId === f.cat) && (!q || norm(g.estabelecimento + " " + (g.nota || "")).includes(q)))
+    return liveG().filter(g => (!f.mes || q || CG.monthKey(g.data) === f.mes) && (!f.cat || g.categoriaId === f.cat) && (!q || norm(g.estabelecimento + " " + (g.nota || "")).includes(q)))
       .sort((a, b) => a.data < b.data ? 1 : a.data > b.data ? -1 : a.alteradoEm < b.alteradoEm ? 1 : -1);
   }
   function rLanc() {
     if (!S.f.mes && !S.f._init) { S.f.mes = months().includes(nowMonth()) ? nowMonth() : (months()[0] || ""); S.f._init = true; }
     S.f.mes = fillSelect($("#f-mes"), monthOpts(), S.f.mes); S.f.cat = fillSelect($("#f-cat"), catOpts(), S.f.cat); fillSelect($("#bulkcat"), S.cats.map(c => [c.id, c.nome]), "");
     const list = filtered(), shown = list.slice(0, S.lim), tot = sumBy(list);
-    $("#lsum").textContent = list.length ? `${list.length} ${list.length === 1 ? "lançamento" : "lançamentos"} · total ${brl(tot)}` : "";
+    $("#lsum").textContent = list.length ? `${list.length} ${list.length === 1 ? "lançamento" : "lançamentos"} · total ${brl(tot)}${S.f.q ? " · buscando em todos os meses" : ""}` : "";
     $("#lempty").hidden = list.length > 0; $("#lt").hidden = !list.length; $("#more").hidden = list.length <= S.lim;
     $("#ltb").innerHTML = shown.map(g => { const c = catOf(g.categoriaId), neg = g.valor < 0;
       return `<tr data-id="${g.id}"><td class="c-sel"><input type="checkbox" data-sel="${g.id}" ${S.sel.has(g.id) ? "checked" : ""} aria-label="Selecionar ${esc(g.estabelecimento || "gasto")} de ${CG.fmtDate(g.data)}"></td><td data-l="Data">${CG.fmtDate(g.data)}</td><td data-l="Local"><b>${esc(g.estabelecimento || "Sem nome")}</b>${g.nota ? `<small>${esc(g.nota)}</small>` : ""}${g.origem === "foto" ? '<small class="tag">foto</small>' : ""}</td><td data-l="Categoria"><span class="dot" style="background:${c.cor}" aria-hidden="true"></span>${esc(c.nome)}</td><td class="num" data-l="Valor">${brl(g.valor)}${neg ? ' <small class="tag">estorno</small>' : ""}</td><td class="c-act"><button class="btn sm" type="button" data-edit="${g.id}" aria-label="Editar gasto de ${esc(g.estabelecimento || "sem nome")} em ${CG.fmtDate(g.data)}">Editar</button></td></tr>`; }).join("");
     $("#selall").checked = shown.length > 0 && shown.every(g => S.sel.has(g.id)); selBar();
   }
   function selBar() { const n = S.sel.size; $("#selbar").hidden = !n; $("#selcount").textContent = `${n} ${n === 1 ? "selecionado" : "selecionados"}`; }
-  $("#f-mes").onchange = e => { S.f.mes = e.target.value; S.lim = 50; rLanc(); }; $("#f-cat").onchange = e => { S.f.cat = e.target.value; S.lim = 50; rLanc(); };
-  $("#f-q").oninput = e => { S.f.q = e.target.value; S.lim = 50; rLanc(); }; $("#more").onclick = () => { S.lim += 50; rLanc(); };
+  $("#f-mes").onchange = e => { S.f.mes = e.target.value; S.lim = 50; S.sel.clear(); rLanc(); }; $("#f-cat").onchange = e => { S.f.cat = e.target.value; S.lim = 50; S.sel.clear(); rLanc(); };
+  $("#f-q").oninput = e => { S.f.q = e.target.value; S.lim = 50; S.sel.clear(); rLanc(); }; $("#more").onclick = () => { S.lim += 50; rLanc(); };
   $("#ltb").addEventListener("change", e => { const c = e.target.closest("[data-sel]"); if (!c) return; c.checked ? S.sel.add(c.dataset.sel) : S.sel.delete(c.dataset.sel); selBar(); $("#selall").checked = filtered().slice(0, S.lim).every(g => S.sel.has(g.id)); });
   $("#selall").onchange = e => { filtered().slice(0, S.lim).forEach(g => e.target.checked ? S.sel.add(g.id) : S.sel.delete(g.id)); rLanc(); };
-  $("#bulkapply").onclick = async () => { const ids = [...S.sel], cat = $("#bulkcat").value; if (!ids.length || !cat) return; await dailySnapshot(); const put = []; ids.forEach(id => { const g = S.gastos.find(x => x.id === id); if (g) { g.categoriaId = cat; g.alteradoEm = new Date().toISOString(); put.push(g); } }); await DB.putMany("gastos", put); await touch(put.length); S.sel.clear(); rLanc(); say(`Categoria trocada em ${put.length} lançamentos.`); T.toast("Categoria trocada."); };
-  $("#bulkdel").onclick = async () => { const ids = [...S.sel]; if (!ids.length) return; await setRemoved(ids, true); S.sel.clear(); rLanc(); showUndo(`${ids.length} ${ids.length === 1 ? "lançamento excluído" : "lançamentos excluídos"}.`, async () => { await setRemoved(ids, false); render(); }); };
+  $("#bulkapply").onclick = async () => {
+    const ids = [...S.sel], cat = $("#bulkcat").value; if (!ids.length || !cat) return; await dailySnapshot();
+    const put = [], old = new Map(); ids.forEach(id => { const g = S.gastos.find(x => x.id === id); if (g) { old.set(id, g.categoriaId); g.categoriaId = cat; g.alteradoEm = new Date().toISOString(); put.push(g); } });
+    await DB.putMany("gastos", put); await touch(put.length); S.sel.clear(); rLanc();
+    showUndo(`Categoria trocada para ${catOf(cat).nome} em ${put.length} ${put.length === 1 ? "lançamento" : "lançamentos"}.`, async () => { const back = []; old.forEach((c, id) => { const g = S.gastos.find(x => x.id === id); if (g) { g.categoriaId = c; g.alteradoEm = new Date().toISOString(); back.push(g); } }); await DB.putMany("gastos", back); await touch(back.length); render(); });
+  };
+  $("#bulkdel").onclick = async () => { const ids = [...S.sel]; if (!ids.length) return; await setRemoved(ids, true); S.sel.clear(); rLanc(); focusHeading(); showUndo(`${ids.length} ${ids.length === 1 ? "lançamento excluído" : "lançamentos excluídos"}.`, async () => { await setRemoved(ids, false); render(); }); };
   document.addEventListener("click", e => { const b = e.target.closest("[data-edit]"); if (b) { const g = S.gastos.find(x => x.id === b.dataset.edit); if (g) openGasto(g, null, b); } });
 
   /* ---------- diálogo do gasto ---------- */
@@ -126,22 +133,27 @@
     gCat = g ? g.categoriaId : (S.lastCat && catOf(S.lastCat).id ? S.lastCat : S.cats[0].id); renderChips();
     $("#g-estab-l").innerHTML = [...new Set(liveG().map(x => x.estabelecimento).filter(Boolean))].slice(0, 200).map(s => `<option value="${esc(s)}">`).join("");
     G.info.hidden = !info; if (info) G.info.textContent = info;
-    $("#g-del").hidden = !g; $("#g-save2").hidden = !(photo && S.queue.length >= 0 && !g); $("#g-queue").hidden = !(S.qTotal > 1 && photo); if (S.qTotal > 1 && photo) $("#g-queue").textContent = `Nota ${S.qTotal - S.queue.length} de ${S.qTotal}`;
-    showPhoto(g, photo); hints(); gd.showModal(); (v == null ? G.valor : G.estab).focus(); if (v == null) G.valor.select();
+    $("#g-del").hidden = !g; $("#g-stopq").hidden = !(S.qTotal > 1 && photo && S.queue.length > 0); $("#g-save2").hidden = !(photo && S.queue.length >= 0 && !g); $("#g-queue").hidden = !(S.qTotal > 1 && photo); if (S.qTotal > 1 && photo) $("#g-queue").textContent = `Nota ${S.qTotal - S.queue.length} de ${S.qTotal}`;
+    showPhoto(g, photo); hints(); $("#g-keephint").hidden = G.keep.checked; gd.showModal(); (v == null ? G.valor : G.estab).focus(); if (v == null) G.valor.select();
   }
   async function showPhoto(g, photo) {
     if (photoUrl) { URL.revokeObjectURL(photoUrl); photoUrl = null; } G.fig.classList.remove("big");
     let blob = photo ? photo.blob : null; G.keep.checked = false;
     if (!blob && g && g.fotoId) { const f = await DB.get("fotos", g.fotoId); if (f) { blob = f.blob; G.keep.checked = true; } }
-    G.fig.hidden = !blob; if (blob) { photoUrl = URL.createObjectURL(blob); G.img.src = photoUrl; }
+    G.fig.hidden = !blob; $("#g-keephint").hidden = G.keep.checked; if (blob) { photoUrl = URL.createObjectURL(blob); G.img.src = photoUrl; }
     if (photo && !photo.keepDefault) G.keep.checked = false;
   }
   $("#g-zoom").onclick = () => G.fig.classList.toggle("big");
   $("#g-rmphoto").onclick = () => { S.photo = null; G.fig.hidden = true; G.keep.checked = false; S.dropPhoto = true; G.valor.focus(); };
   G.valor.addEventListener("blur", () => { const c = CG.parseMoney(G.valor.value); if (c != null) G.valor.value = CG.num(Math.abs(c)); });
   G.estab.addEventListener("change", () => { const id = S.meta.memory[norm(G.estab.value)]; if (id && S.cats.some(c => c.id === id) && !S.edit) { gCat = id; renderChips(); } });
-  $("#g-cancel").onclick = () => { gd.close(); };
-  gd.addEventListener("close", () => { if (photoUrl) { URL.revokeObjectURL(photoUrl); photoUrl = null; } S.dropPhoto = false; if (gOpener && gOpener.isConnected) gOpener.focus(); });
+  $("#g-cancel").onclick = () => { const more = S.queue.length > 0 && S.photo; gd.close(); if (more) { T.toast("Nota pulada. Próxima da fila."); setTimeout(nextPhoto, 150); } };
+  gd.addEventListener("close", () => { if (photoUrl) { URL.revokeObjectURL(photoUrl); photoUrl = null; } S.dropPhoto = false; if (gOpener && gOpener.isConnected) gOpener.focus(); else focusHeading(); });
+  /* teclado virtual: o campo em foco rola para o meio do diálogo (a barra de ações fica fixa) */
+  gd.addEventListener("focusin", e => { if (e.target.matches("input,select,textarea")) setTimeout(() => e.target.scrollIntoView({ block: "center", behavior: "auto" }), 250); });
+  $("#g-keep").addEventListener("change", () => { $("#g-keephint").hidden = G.keep.checked; });
+  $("#g-stopq").onclick = () => { S.queue = []; S.qTotal = 0; gd.close(); T.toast("Fila encerrada."); };
+  G.data.addEventListener("input", () => { const d = CG.parseDate(G.data.value), t = CG.today(); const h = $("#g-data-h"); if (!d) { h.textContent = ""; return; } h.textContent = d > t ? "Data no futuro: confira." : d < CG.addMonths(t.slice(0, 7), -24) + "-01" ? "Data com mais de 2 anos: confira." : (gConf.data ? "Só o mês foi lido: confira o dia." : ""); });
   function gFail(m, el) { G.err.textContent = m; G.err.hidden = false; if (el) { el.setAttribute("aria-invalid", "true"); el.focus(); } }
   async function submitGasto(again) {
     G.err.hidden = true; [G.valor, G.data].forEach(x => x.removeAttribute("aria-invalid"));
@@ -158,7 +170,7 @@
   }
   $("#g-form").addEventListener("submit", e => { e.preventDefault(); submitGasto(false); });
   $("#g-save2").onclick = () => submitGasto(true);
-  $("#g-del").onclick = async () => { const g = S.edit; if (!g) return; gd.close(); await setRemoved([g.id], true); render(); showUndo(`Excluído: ${g.estabelecimento || "gasto"}, ${brl(g.valor)}.`, async () => { await setRemoved([g.id], false); render(); }); };
+  $("#g-del").onclick = async () => { const g = S.edit; if (!g) return; gd.close(); await setRemoved([g.id], true); render(); focusHeading(); showUndo(`Excluído: ${g.estabelecimento || "gasto"}, ${brl(g.valor)}.`, async () => { await setRemoved([g.id], false); render(); }); };
   $("#newmanual").onclick = e => openGasto(null, null, e.currentTarget); $("#add2").onclick = e => openGasto(null, null, e.currentTarget);
 
   /* ---------- fotos ---------- */
@@ -180,7 +192,7 @@
         if (n.valor != null) { valor = n.valor; conf.valor = true; }
         if (n.data) data = n.data; else if (n.mes) { const hoje = CG.today(); data = hoje.slice(0, 7) === n.mes ? hoje : n.mes + "-01"; if (data !== hoje) conf.data = true; }
         if (n.cnpj) { const prev = liveG().find(g => g.cnpj === n.cnpj); if (prev) estab = prev.estabelecimento; }
-      } else info = QR.supported() ? "Não encontrei QR Code na foto. Digite o valor e confira a data." : "Este navegador não lê QR Code. Digite o valor e confira a data.";
+      } else info = QR.supported() ? "Não encontrei QR Code na foto. Digite o valor e confira a data." : "Este navegador não lê QR Code (no Chrome do Android costuma funcionar). Digite o valor e confira a data.";
       document.body.removeAttribute("aria-busy");
       openGasto(null, { blob: p.blob, thumb: p.thumb, valor, data, conf, estab }, null, info);
     } catch (e) {
@@ -199,7 +211,7 @@
     const inM = (g, k) => CG.monthKey(g.data) === k, cf = g => !S.r.cat || g.categoriaId === S.r.cat;
     const cur = all.filter(g => inM(g, mk) && cf(g)), prev = all.filter(g => inM(g, pk) && cf(g)), prevCut = prev.filter(g => +g.data.slice(8) <= cut), prevHas = all.some(g => inM(g, pk));
     const tot = sumBy(cur), avg = Math.round(tot / Math.max(1, cut)), proj = isNow ? avg * dim : tot;
-    let out = ""; const card = (h, body, note) => `<section class="rcard" aria-label="${esc(h)}"><h3 class="sec2">${esc(h)}</h3>${note ? `<p class="auto">${esc(note)}</p>` : ""}${body}</section>`;
+    let out = ""; const card = (h, body, note) => `<div class="rcard"><h3 class="sec2">${esc(h)}</h3>${note ? `<p class="auto">${esc(note)}</p>` : ""}${body}</div>`;
     /* 1. painel */
     const daily = Array(dim).fill(0), dailyP = Array(CG.daysIn(pk)).fill(0); cur.forEach(g => { daily[+g.data.slice(8) - 1] += g.valor; }); prev.forEach(g => { dailyP[+g.data.slice(8) - 1] += g.valor; });
     const cum = a => { let s = 0; return a.map(v => (s += v)); }, cc = cum(daily).slice(0, cut), cp = prevHas ? cum(dailyP) : [];
@@ -218,7 +230,8 @@
     out += card("Por estabelecimento (top 10)", CGCharts.bars(eRows, { title: "Gasto por estabelecimento" }), "");
     /* 4. evolução */
     const span = Array.from({ length: 12 }, (_, i) => CG.addMonths(mk, i - 11)), perM = span.map(k => ({ label: CG.monthShort(k), value: all.filter(g => inM(g, k) && cf(g)).reduce((s, g) => s + g.valor, 0), has: all.some(g => inM(g, k)), current: k === mk })), withData = perM.filter(m => m.has);
-    out += card("Evolução mensal", withData.length >= 3 ? CGCharts.columns(withData, { avg: Math.round(withData.reduce((s, m) => s + m.value, 0) / withData.length) }) : `<p class="muted">Poucos meses para um gráfico (${withData.length}). Quando houver 3 meses ou mais, ele aparece.</p>${CGCharts.table(["Mês", "Total"], withData.map(m => [m.label, brl(m.value)]), "Gasto por mês")}`, "");
+    const evAvg = Math.round(withData.reduce((s, m) => s + m.value, 0) / Math.max(1, withData.length)), narrow = ($("#rep").clientWidth || 640) < 560;
+    out += card("Evolução mensal", withData.length >= 3 ? (narrow ? CGCharts.bars(withData.map(m => ({ label: m.label, value: m.value, color: m.current ? "var(--accent)" : "var(--muted)" })), { noPct: true, title: "Gasto por mês", summary: `Gasto por mês. Média: ${brl(evAvg)}.` }) + `<p class="legend"><span class="lg">Média de ${esc(brl(evAvg))} por mês. O mês escolhido está em âmbar.</span></p>` : CGCharts.columns(withData, { avg: evAvg })) : `<p class="muted">Poucos meses para um gráfico (${withData.length}). Quando houver 3 meses ou mais, ele aparece.</p>${CGCharts.table(["Mês", "Total"], withData.map(m => [m.label, brl(m.value)]), "Gasto por mês")}`, "");
     /* 5. orçamento */
     const budget = S.cats.filter(c => c.meta > 0).map(c => ({ label: c.nome, spent: all.filter(g => inM(g, mk) && g.categoriaId === c.id).reduce((s, g) => s + g.valor, 0), meta: c.meta }));
     out += card("Orçamento por categoria", budget.length ? CGCharts.progress(budget) : '<p class="muted">Nenhuma meta definida. <button class="link" type="button" id="goals">Definir metas</button></p>', "");
@@ -299,7 +312,7 @@
     try {
       let rows, metaSheet = null;
       if (/\.xlsx$/i.test(f.name)) { const wb = await XLSX.read(await f.arrayBuffer()); const sh = wb.sheets.find(s => norm(s.name) === "gastos") || wb.sheets.find(s => s.state === "visible" && s.rows.length); if (!sh) throw new Error("A planilha não tem abas com dados."); rows = sh.rows; const m = wb.sheets.find(s => s.name === "_meta"); if (m) metaSheet = Object.fromEntries(m.rows.map(r => [r[0], r[1]])); }
-      else rows = CG.parseCSV(new TextDecoder("utf-8").decode(new Uint8Array(await f.arrayBuffer())));
+      else { const u8 = new Uint8Array(await f.arrayBuffer()); let t; try { t = new TextDecoder("utf-8", { fatal: true }).decode(u8); } catch (_) { t = new TextDecoder("windows-1252").decode(u8); } rows = CG.parseCSV(t); }
       rows = rows.filter(r => r.some(c => c !== "" && c != null)); if (rows.length < 2) throw new Error("A planilha precisa de uma linha de títulos e pelo menos um gasto.");
       IM = { name: f.name, head: rows[0].map(h => String(h == null ? "" : h)), rows: rows.slice(1), map: {}, meta: metaSheet };
       FIELDS.forEach(([k, , syn]) => { const i = IM.head.findIndex(h => syn.includes(norm(h))); IM.map[k] = i; });
@@ -320,22 +333,22 @@
       const line = n + 2, dRaw = val(r, "data"), d = CG.parseDate(dRaw && dRaw.date !== undefined ? dRaw.date : dRaw), v = CG.parseMoney(val(r, "valor"));
       if (!d || v == null) { P.erros.push(`Linha ${line}: ${!d ? "data inválida" : "valor inválido"}`); return; }
       const cname = String(val(r, "categoria") || "").trim(), cat = cname ? catByName(cname) : null; if (cname && !cat) P.newCats.add(cname);
-      const g = { id: String(val(r, "id") || "").trim(), data: d, valor: v, estabelecimento: String(val(r, "estabelecimento") || "").trim(), cname, categoriaId: cat ? cat.id : null, pagamento: PAGS.includes(String(val(r, "pagamento") || "").trim()) ? String(val(r, "pagamento")).trim() : "", nota: String(val(r, "nota") || "").trim(), alt: String(val(r, "alterado") || "") };
+      const mp = k => IM.map[k] >= 0, g = { id: String(val(r, "id") || "").trim(), data: d, valor: v, estabelecimento: String(val(r, "estabelecimento") || "").trim(), cname, categoriaId: cat ? cat.id : null, pagamento: PAGS.includes(String(val(r, "pagamento") || "").trim()) ? String(val(r, "pagamento")).trim() : "", nota: String(val(r, "nota") || "").trim(), alt: String(val(r, "alterado") || "") };
       const ex = g.id ? byId.get(g.id) : null;
       if (ex && !ex.removido) {
-        const same = ex.data === g.data && ex.valor === g.valor && (ex.estabelecimento || "") === g.estabelecimento && (!cname || catOf(ex.categoriaId).nome === cname) && (ex.nota || "") === g.nota;
-        if (same) P.igual++; else if (g.alt && ex.alteradoEm > g.alt) P.conf.push(g); else P.atual.push({ g, ex });
+        const same = ex.data === g.data && ex.valor === g.valor && (!mp("estabelecimento") || (ex.estabelecimento || "") === g.estabelecimento) && (!mp("categoria") || !cname || catOf(ex.categoriaId).nome === cname) && (!mp("nota") || (ex.nota || "") === g.nota) && (!mp("pagamento") || !g.pagamento || ex.pagamento === g.pagamento);
+        if (same) P.igual++; else if (!g.alt || ex.alteradoEm > g.alt) P.conf.push(g); else P.atual.push({ g, ex });
         return;
       }
       const h = CG.hashDup(g); if (seen.has(h)) { P.dups.push(g); return; } seen.add(h); P.novos.push(g);
     });
-    IM.P = P; const parts = [`${P.novos.length} novos`, `${P.atual.length} atualizados`, `${P.conf.length} em conflito`, `${P.dups.length} possíveis duplicados`, `${P.igual} sem mudança`, `${P.erros.length} com erro`];
-    $("#i-sum").innerHTML = `<p><strong>${parts.join(" · ")}</strong></p>${P.newCats.size ? `<p>Categorias novas que serão criadas: ${[...P.newCats].map(esc).join(", ")}.</p>` : ""}${P.erros.length ? `<p class="small">${P.erros.slice(0, 5).map(esc).join("<br>")}${P.erros.length > 5 ? `<br>… e mais ${P.erros.length - 5}` : ""}</p>` : ""}${IM.meta && IM.meta.hash ? `<p class="small">Planilha gerada por este caderno em ${esc(String(IM.meta.exportadoEm || "").slice(0, 10))}.</p>` : ""}`;
+    const mp = k => IM.map[k] >= 0; IM.P = P; const parts = [`${P.novos.length} novos`, `${P.atual.length} atualizados`, `${P.conf.length} em conflito`, `${P.dups.length} possíveis duplicados`, `${P.igual} sem mudança`, `${P.erros.length} com erro`];
+    $("#i-sum").innerHTML = `<p><strong>${parts.join(" · ")}</strong></p>${P.newCats.size ? `<p>Categorias novas que serão criadas: ${[...P.newCats].map(esc).join(", ")}. Se for erro de digitação, corrija a planilha e importe de novo.</p>` : ""}${P.conf.length ? `<p class="small">“Em conflito”: o caderno tem uma versão mais nova do gasto, ou a planilha não traz a coluna “Alterado em”. Eles só mudam se você marcar a opção abaixo.</p>` : ""}${P.atual.length ? `<details class="dt"><summary>Ver o que será atualizado (${P.atual.length})</summary><ul class="dl">${P.atual.slice(0, 20).map(({ g, ex }) => `<li>${CG.fmtDate(ex.data)} · ${esc(ex.estabelecimento || "Sem nome")}<small>${[ex.data !== g.data ? `data ${CG.fmtDate(ex.data)} → ${CG.fmtDate(g.data)}` : "", ex.valor !== g.valor ? `valor ${brl(ex.valor)} → ${brl(g.valor)}` : "", mp("estabelecimento") && (ex.estabelecimento || "") !== g.estabelecimento ? `local “${esc(ex.estabelecimento || "")}” → “${esc(g.estabelecimento)}”` : "", mp("nota") && (ex.nota || "") !== g.nota ? "anotação" : "", mp("categoria") && g.cname && catOf(ex.categoriaId).nome !== g.cname ? `categoria ${esc(catOf(ex.categoriaId).nome)} → ${esc(g.cname)}` : ""].filter(Boolean).join("; ")}</small></li>`).join("")}</ul></details>` : ""}${P.erros.length ? `<p class="small">${P.erros.slice(0, 5).map(esc).join("<br>")}${P.erros.length > 5 ? `<br>… e mais ${P.erros.length - 5}` : ""}</p>` : ""}${IM.meta && IM.meta.hash ? `<p class="small">Planilha gerada por este caderno em ${esc(String(IM.meta.exportadoEm || "").slice(0, 10))}.</p>` : ""}`;
     const ok = !(IM.map.data < 0 || IM.map.valor < 0); $("#i-ok").disabled = !ok; if (!ok) { $("#i-err").textContent = "Escolha as colunas de Data e Valor."; $("#i-err").hidden = false; } else $("#i-err").hidden = true;
   }
   $("#i-cancel").onclick = () => id_.close(); id_.addEventListener("close", () => { if (iOpener && iOpener.isConnected) iOpener.focus(); });
   $("#i-form").addEventListener("submit", async e => {
-    e.preventDefault(); const P = IM.P, withDups = $("#i-dups").checked, withConf = $("#i-conf").checked; const btn = $("#i-ok"); btn.disabled = true;
+    e.preventDefault(); if (IM.busy) return; IM.busy = true; const P = IM.P, withDups = $("#i-dups").checked, withConf = $("#i-conf").checked; const btn = $("#i-ok"); btn.disabled = true;
     await Ver.create(S.gastos, S.cats, "pre-import", IM.name); const now = new Date().toISOString(), put = [], cats = [];
     for (const n of P.newCats) { const c = { id: "c" + uid(), nome: n, cor: PALETTE[(S.cats.length + cats.length) % PALETTE.length], meta: 0, ordem: S.cats.length + cats.length }; cats.push(c); }
     if (cats.length) { await DB.putMany("categorias", cats); S.cats.push(...cats); }
@@ -343,8 +356,9 @@
     const mk = (g, id) => ({ id: id || uid(), data: g.data, valor: g.valor, moeda: "BRL", estabelecimento: g.estabelecimento, categoriaId: cid(g), pagamento: g.pagamento || "Outro", nota: g.nota, origem: "import", confianca: "", criadoEm: now, alteradoEm: now, removido: false, fotoId: null });
     P.novos.forEach(g => { const ex = g.id && S.gastos.find(x => x.id === g.id); put.push(mk(g, ex ? null : g.id)); });
     if (withDups) P.dups.forEach(g => put.push(mk(g)));
-    P.atual.forEach(({ g, ex }) => put.push({ ...ex, data: g.data, valor: g.valor, estabelecimento: g.estabelecimento, categoriaId: g.cname ? cid(g) : ex.categoriaId, pagamento: g.pagamento || ex.pagamento, nota: g.nota, alteradoEm: now }));
-    if (withConf) P.conf.forEach(g => { const ex = S.gastos.find(x => x.id === g.id); if (ex) put.push({ ...ex, data: g.data, valor: g.valor, estabelecimento: g.estabelecimento, categoriaId: g.cname ? cid(g) : ex.categoriaId, pagamento: g.pagamento || ex.pagamento, nota: g.nota, alteradoEm: now }); });
+    const mp = k => IM.map[k] >= 0, upd = (ex, g) => ({ ...ex, data: g.data, valor: g.valor, estabelecimento: mp("estabelecimento") ? g.estabelecimento : ex.estabelecimento, categoriaId: mp("categoria") && g.cname ? cid(g) : ex.categoriaId, pagamento: mp("pagamento") && g.pagamento ? g.pagamento : ex.pagamento, nota: mp("nota") ? g.nota : ex.nota, alteradoEm: now });
+    P.atual.forEach(({ g, ex }) => put.push(upd(ex, g)));
+    if (withConf) P.conf.forEach(g => { const ex = S.gastos.find(x => x.id === g.id); if (ex) put.push(upd(ex, g)); });
     await DB.putMany("gastos", put); put.forEach(g => { const i = S.gastos.findIndex(x => x.id === g.id); if (i >= 0) S.gastos[i] = g; else S.gastos.push(g); }); await touch(put.length);
     id_.close(); S.f._init = false; render(); say(`Importação concluída: ${put.length} lançamentos.`); T.toast(`${put.length} lançamentos importados.`); showAlertOK(`Importação concluída: ${put.length} lançamentos. Uma versão “antes de importar” foi guardada em Planilha e versões.`);
   });
@@ -366,7 +380,7 @@
     if (c) openDiff(c.dataset.vcmp, c.currentTarget || c);
     if (d) { if (confirm("Excluir esta versão? Isso não pode ser desfeito.")) { await DB.del("versoes", d.dataset.vdel); rBackup(); } }
     if (r) { const v = (await Ver.list()).find(x => x.id === r.dataset.vres); if (!v) return; if (!confirm(`Restaurar a versão de ${new Date(v.at).toLocaleString("pt-BR")}? O estado atual será salvo como uma versão antes, então nada se perde.`)) return;
-      await Ver.create(S.gastos, S.cats, "pre-restore", ""); const data = Ver.parse(v); await DB.clear("gastos"); await DB.clear("categorias"); await DB.putMany("gastos", data.gastos); await DB.putMany("categorias", data.categorias); await loadAll(); await touch(); S.f._init = false; S.sel.clear(); render(); say("Versão restaurada."); T.toast("Versão restaurada."); }
+      await Ver.create(S.gastos, S.cats, "pre-restore", ""); const data = Ver.parse(v); await DB.clear("gastos"); await DB.clear("categorias"); await DB.putMany("gastos", data.gastos); await DB.putMany("categorias", data.categorias); await loadAll(); await sweepPhotos(); await touch(); S.f._init = false; S.sel.clear(); render(); say("Versão restaurada."); T.toast("Versão restaurada."); }
   });
   const dd = $("#ddlg"); let dOpener = null;
   async function openDiff(vid, opener) {
@@ -379,7 +393,16 @@
     $("#d-a").onchange = go; $("#d-b").onchange = go; await go(); dd.showModal();
   }
   $("#d-close").onclick = () => dd.close(); dd.addEventListener("close", () => { if (dOpener && dOpener.isConnected) dOpener.focus(); });
-  $("#wipe").onclick = async () => { if (!confirm("Apagar TODOS os gastos, categorias, fotos e versões deste navegador? Baixe a planilha antes. Isso não pode ser desfeito.")) return; for (const s of ["gastos", "categorias", "fotos", "versoes", "meta"]) await DB.clear(s); await loadAll(); S.f._init = false; render(); T.toast("Tudo apagado."); say("Todos os dados foram apagados."); };
+  async function sweepPhotos() {
+    const ids = new Set(S.gastos.filter(g => !g.removido).map(g => g.id)), fotos = await DB.all("fotos"), have = new Set(fotos.map(f => f.id)), put = [];
+    for (const f of fotos) if (!ids.has(f.id)) await DB.del("fotos", f.id);
+    S.gastos.forEach(g => { if (g.fotoId && !have.has(g.fotoId)) { g.fotoId = null; put.push(g); } }); if (put.length) await DB.putMany("gastos", put);
+  }
+  const wd = $("#wdlg"); let wOpener = null;
+  $("#wipe").onclick = e => { wOpener = e.currentTarget; $("#w-word").value = ""; $("#w-ok").disabled = true; wd.showModal(); $("#w-word").focus(); };
+  $("#w-word").oninput = e => { $("#w-ok").disabled = e.target.value.trim().toUpperCase() !== "APAGAR"; };
+  $("#w-dl").onclick = exportXlsx; $("#w-cancel").onclick = () => wd.close(); wd.addEventListener("close", () => { if (wOpener && wOpener.isConnected) wOpener.focus(); });
+  $("#w-form").addEventListener("submit", async e => { e.preventDefault(); if ($("#w-word").value.trim().toUpperCase() !== "APAGAR") return; wd.close(); for (const s of ["gastos", "categorias", "fotos", "versoes", "meta"]) await DB.clear(s); await loadAll(); S.f._init = false; render(); T.toast("Tudo apagado."); say("Todos os dados foram apagados."); });
   $("#resetdata").onclick = () => { if (confirm("Isso remove as preferências desta ferramenta neste navegador (tema e filtros). Seus gastos continuam; para apagar tudo use Planilha e versões > Zona de risco. Continuar?")) { T.clear(); location.reload(); } };
 
   /* ---------- início do app ---------- */

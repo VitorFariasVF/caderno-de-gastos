@@ -24,7 +24,7 @@ window.CG = (() => {
   /* dd/mm/aaaa · dd/mm/aa · aaaa-mm-dd · serial do Excel → "AAAA-MM-DD" ou null */
   function parseDate(v) {
     if (v == null || v === "") return null;
-    if (typeof v === "number") { if (v < 20000 || v > 80000) return null; const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 864e5); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; }
+    if (typeof v === "number") { if (v < 20000 || v > 80000) return null; const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 864e5); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; }
     const s = String(v).trim(); let m;
     if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) return okDate(+m[1], +m[2], +m[3]) ? `${m[1]}-${pad(+m[2])}-${pad(+m[3])}` : null;
     if ((m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/.exec(s))) { let y = +m[3]; if (y < 100) y += 2000; return okDate(y, +m[2], +m[1]) ? `${y}-${pad(+m[2])}-${pad(+m[1])}` : null; }
