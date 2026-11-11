@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark" data-tool="caderno-de-gastos">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Caderno de Gastos — VF Tools</title>
+<meta name="description" content="Anote gastos por foto da nota, digitando ou importando planilha. Excel, versões e relatórios. Tudo no navegador.">
+<meta name="theme-color" content="#14110f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="https://vitorfariasvf.github.io/VF-Tools/assets/favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Caderno de Gastos — VF Tools">
+<meta property="og:description" content="Fotografe a nota, confira e salve. Excel, versões e relatórios. Seus dados não saem do seu aparelho.">
+<script>try{var s=JSON.parse(localStorage.getItem("vf-tools:caderno-de-gastos:v1")||"{}").theme||JSON.parse(localStorage.getItem("vf-tools:v1")||"{}").theme;if(s)document.documentElement.dataset.theme=s}catch(e){}</script>
+<link rel="stylesheet" href="https://vitorfariasvf.github.io/VF-Tools/tokens.css">
+<link rel="stylesheet" href="https://vitorfariasvf.github.io/VF-Tools/components.css">
+<link rel="stylesheet" href="https://vitorfariasvf.github.io/VF-Tools/doggy.css">
+<link rel="stylesheet" href="https://vitorfariasvf.github.io/VF-Tools/motion.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip" href="#main">Ir para o conteúdo</a>
+
+<header class="top wrap wide">
+  <a class="back" href="https://vitorfariasvf.github.io/VF-Tools/" aria-label="Voltar para VF Tools"><span>← VF<i style="color:var(--accent);font-style:normal">.</i>Tools</span></a>
+  <button id="theme" class="icon-btn" aria-label="Alternar tema claro/escuro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</header>
+
+<main id="main" class="wrap wide">
+  <h1 class="title">Caderno de <em>Gastos</em></h1>
+  <p class="lead">Fotografe a nota, confira e salve. Planilha Excel, versões e relatórios. Seus dados não saem do seu aparelho.</p>
+  <div id="alert" class="state error" role="alert" hidden></div>
+  <p id="volatile" class="state error" role="status" hidden>Este navegador não deixa guardar dados (aba anônima?). Tudo some ao fechar: baixe a planilha antes de sair.</p>
+
+  <nav class="tabs" id="tabs" aria-label="Seções do caderno">
+    <a href="#/inicio" data-v="inicio">Início</a>
+    <a href="#/lancamentos" data-v="lancamentos">Lançamentos</a>
+    <a href="#/relatorios" data-v="relatorios">Relatórios</a>
+    <a href="#/backup" data-v="backup">Planilha e versões</a>
+  </nav>
+
+  <!-- INÍCIO -->
+  <section id="v-inicio" data-view aria-labelledby="h-inicio" hidden>
+    <h2 id="h-inicio" class="sec">Início</h2>
+    <div class="hero card">
+      <p class="muted" id="h-mes"></p>
+      <p class="big" id="h-total">R$ 0,00</p>
+      <p class="muted" id="h-sub"></p>
+      <div class="hero-actions">
+        <button id="newphoto" class="btn primary" type="button">Fotografar nota</button>
+        <button id="newgal" class="btn" type="button">Escolher da galeria</button>
+        <button id="newmanual" class="btn" type="button">Digitar gasto</button>
+      </div>
+      <p class="muted small">A foto fica só neste aparelho. Antes de salvar, você confere o que foi lido.</p>
+    </div>
+    <div id="bkbanner" class="note-box" role="status" hidden></div>
+    <h3 class="sec2">Últimas entradas</h3>
+    <ul id="recent" class="recent" role="list"></ul>
+    <div id="empty" class="state" hidden>
+      <p><strong>Seu caderno está vazio.</strong> Fotografe uma nota, digite um gasto ou <a href="#/backup">importe uma planilha</a> para começar.</p>
+    </div>
+  </section>
+
+  <!-- LANÇAMENTOS -->
+  <section id="v-lancamentos" data-view aria-labelledby="h-lanc" hidden>
+    <h2 id="h-lanc" class="sec">Lançamentos</h2>
+    <div class="filters">
+      <div class="field"><label for="f-mes">Mês</label><select id="f-mes"></select></div>
+      <div class="field"><label for="f-cat">Categoria</label><select id="f-cat"></select></div>
+      <div class="field grow"><label for="f-q">Buscar</label><input id="f-q" type="search" autocomplete="off" placeholder="Estabelecimento ou nota"></div>
+      <button id="add2" class="btn" type="button">Novo gasto</button>
+    </div>
+    <p id="lsum" class="muted" aria-live="polite"></p>
+    <div id="selbar" class="selbar" hidden>
+      <span id="selcount"></span>
+      <label class="inl"><span class="sr-only">Nova categoria dos selecionados</span><select id="bulkcat" aria-label="Nova categoria dos selecionados"></select></label>
+      <button id="bulkapply" class="btn" type="button">Trocar categoria</button>
+      <button id="bulkdel" class="btn danger" type="button">Excluir selecionados</button>
+    </div>
+    <div class="tw">
+      <table id="lt" class="lt">
+        <caption class="sr-only">Lançamentos de gastos</caption>
+        <thead><tr><th scope="col" class="c-sel"><input type="checkbox" id="selall" aria-label="Selecionar todos os lançamentos exibidos"></th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col">Categoria</th><th scope="col" class="num">Valor</th><th scope="col"><span class="sr-only">Ações</span></th></tr></thead>
+        <tbody id="ltb"></tbody>
+      </table>
+    </div>
+    <p><button id="more" class="btn" type="button" hidden>Mostrar mais</button></p>
+    <div id="lempty" class="state" hidden><p>Nenhum lançamento com esses filtros.</p></div>
+  </section>
+
+  <!-- RELATÓRIOS -->
+  <section id="v-relatorios" data-view aria-labelledby="h-rel" hidden>
+    <h2 id="h-rel" class="sec">Relatórios</h2>
+    <div class="filters noprint">
+      <div class="field"><label for="r-mes">Mês</label><select id="r-mes"></select></div>
+      <div class="field"><label for="r-cat">Categoria</label><select id="r-cat"></select></div>
+      <button id="catsbtn" class="btn" type="button">Categorias e metas</button>
+      <button id="printbtn" class="btn" type="button">Baixar PDF</button>
+    </div>
+    <div id="rep"></div>
+  </section>
+
+  <!-- PLANILHA E VERSÕES -->
+  <section id="v-backup" data-view aria-labelledby="h-bk" hidden>
+    <h2 id="h-bk" class="sec">Planilha e versões</h2>
+    <div class="card">
+      <h3 class="sec2">Planilha Excel (.xlsx)</h3>
+      <p class="muted">Seus dados ficam neste navegador. A planilha é o seu backup e também serve para editar no Excel e trazer de volta. Fotos não vão na planilha.</p>
+      <p id="bkstatus" class="muted" aria-live="polite"></p>
+      <div class="row">
+        <button id="exp" class="btn primary" type="button">Baixar planilha</button>
+        <button id="imp" class="btn" type="button">Importar planilha ou CSV</button>
+        <button id="expzip" class="btn" type="button">Backup completo com fotos (.zip)</button>
+      </div>
+      <p id="stor" class="muted small"></p>
+    </div>
+    <div class="card">
+      <h3 class="sec2">Versões</h3>
+      <p class="muted">Uma versão é uma cópia completa dos gastos e categorias, sem fotos. O caderno guarda uma por dia de uso e outra antes de importar ou restaurar. Restaurar nunca perde o que existe agora: antes ele salva uma versão do estado atual.</p>
+      <div class="row"><button id="savever" class="btn" type="button">Salvar versão agora</button></div>
+      <ul id="vers" class="vers" role="list"></ul>
+    </div>
+    <div class="card danger-zone">
+      <h3 class="sec2">Zona de risco</h3>
+      <p class="muted">Apaga todos os gastos, categorias, fotos e versões deste navegador. Baixe a planilha antes.</p>
+      <button id="wipe" class="btn danger" type="button">Apagar tudo deste navegador</button>
+    </div>
+  </section>
+</main>
+
+<footer class="foot wrap wide">
+  <span>© <span id="y"></span> Vitor Farias · <a href="https://github.com/VitorFariasVF">GitHub</a> · <a href="https://github.com/VitorFariasVF/VF-Tools/issues">Reportar problema</a></span>
+  <span>Gastos, fotos e senhas nunca são enviados a servidores; ficam neste navegador. <button class="link" id="resetdata" type="button">Limpar meus dados</button></span>
+</footer>
+
+<!-- Diálogo: gasto -->
+<dialog id="gdlg" class="xdlg" aria-labelledby="g-t">
+  <form id="g-form" novalidate>
+    <h2 id="g-t">Novo gasto</h2>
+    <p id="g-queue" class="muted" hidden></p>
+    <div class="xgrid">
+      <div class="xcol">
+        <div id="g-info" class="note-box" role="status" hidden></div>
+        <div class="field"><label for="g-valor">Valor (R$)</label><input id="g-valor" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-describedby="g-valor-h g-err"><span id="g-valor-h" class="hint"></span></div>
+        <label class="check"><input id="g-estorno" type="checkbox"> É estorno ou reembolso (entra como valor negativo)</label>
+        <div class="field"><label for="g-data">Data</label><input id="g-data" type="date"><span id="g-data-h" class="hint"></span></div>
+        <div class="field"><label for="g-estab">Estabelecimento</label><input id="g-estab" list="g-estab-l" autocomplete="off" maxlength="80"><datalist id="g-estab-l"></datalist></div>
+        <fieldset class="chips-f"><legend>Categoria</legend><div id="g-cats" class="chips" role="radiogroup" aria-label="Categoria"></div></fieldset>
+        <div class="xrow"><div class="field"><label for="g-pag">Pagamento</label><select id="g-pag"><option>Pix</option><option>Débito</option><option>Crédito</option><option>Dinheiro</option><option>Boleto</option><option>Outro</option></select></div>
+        <div class="field"><label for="g-nota">Anotação</label><input id="g-nota" autocomplete="off" maxlength="160"></div></div>
+        <p id="g-err" class="field-err" role="alert" hidden></p>
+      </div>
+      <div class="xprev">
+        <figure id="g-photo" class="photo" hidden>
+          <button id="g-zoom" type="button" class="photo-btn" aria-label="Ampliar ou reduzir a foto da nota"><img id="g-img" alt="Foto da nota para conferir os valores"></button>
+          <figcaption><label class="check"><input id="g-keep" type="checkbox"> Guardar a foto como comprovante (ela pode mostrar CPF e dados pessoais)</label>
+          <button id="g-rmphoto" class="link" type="button">Remover foto</button></figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="udlg-actions"><button id="g-del" class="btn danger" type="button" hidden>Excluir</button><button id="g-cancel" class="btn" type="button">Cancelar</button><button id="g-save2" class="btn" type="button" hidden>Salvar e outra</button><button id="g-save" class="btn primary" type="submit">Salvar</button></div>
+  </form>
+</dialog>
+
+<!-- Diálogo: categorias e metas -->
+<dialog id="cdlg" class="xdlg" aria-labelledby="c-t">
+  <form id="c-form" novalidate>
+    <h2 id="c-t">Categorias e metas</h2>
+    <p class="muted">A meta mensal (opcional) alimenta o relatório de orçamento, com alerta a 80% e 100%.</p>
+    <div id="c-list" class="clist"></div>
+    <div class="row"><button id="c-add" class="btn" type="button">Adicionar categoria</button></div>
+    <p id="c-err" class="field-err" role="alert" hidden></p>
+    <div class="udlg-actions"><button id="c-cancel" class="btn" type="button">Cancelar</button><button id="c-ok" class="btn primary" type="submit">Salvar categorias</button></div>
+  </form>
+</dialog>
+
+<!-- Diálogo: importar -->
+<dialog id="idlg" class="xdlg" aria-labelledby="i-t">
+  <form id="i-form" novalidate>
+    <h2 id="i-t">Importar planilha</h2>
+    <p id="i-file" class="muted"></p>
+    <div id="i-map" class="clist"></div>
+    <div id="i-sum" class="note-box" role="status"></div>
+    <label class="check"><input id="i-dups" type="checkbox"> Importar também os possíveis duplicados</label>
+    <label class="check"><input id="i-conf" type="checkbox"> Em conflito (o caderno tem versão mais nova), usar a da planilha</label>
+    <p id="i-err" class="field-err" role="alert" hidden></p>
+    <div class="udlg-actions"><button id="i-cancel" class="btn" type="button">Cancelar</button><button id="i-ok" class="btn primary" type="submit">Importar</button></div>
+  </form>
+</dialog>
+
+<!-- Diálogo: rótulo da versão -->
+<dialog id="vdlg" class="xdlg small" aria-labelledby="v-t">
+  <form id="v-form" novalidate>
+    <h2 id="v-t">Salvar versão</h2>
+    <div class="field"><label for="v-label">Nome da versão (opcional)</label><input id="v-label" maxlength="60" autocomplete="off" placeholder="Ex.: antes de fechar o mês"></div>
+    <div class="udlg-actions"><button id="v-cancel" class="btn" type="button">Cancelar</button><button class="btn primary" type="submit">Salvar versão</button></div>
+  </form>
+</dialog>
+
+<!-- Diálogo: comparar versões -->
+<dialog id="ddlg" class="xdlg" aria-labelledby="d-t">
+  <div>
+    <h2 id="d-t">Comparar versões</h2>
+    <div class="xrow"><div class="field"><label for="d-a">De</label><select id="d-a"></select></div><div class="field"><label for="d-b">Para</label><select id="d-b"></select></div></div>
+    <div id="d-out" aria-live="polite"></div>
+    <div class="udlg-actions"><button id="d-close" class="btn primary" type="button">Fechar</button></div>
+  </div>
+</dialog>
+
+<div id="undo" class="undo" role="status" aria-live="polite" hidden><span id="undo-t"></span><button id="undo-b" class="btn" type="button">Desfazer</button></div>
+<p id="live" class="sr-only" aria-live="polite"></p>
+<input id="cam" type="file" accept="image/*" capture="environment" hidden tabindex="-1" aria-label="Tirar foto da nota">
+<input id="gal" type="file" accept="image/*" multiple hidden tabindex="-1" aria-label="Escolher fotos de notas">
+<input id="impfile" type="file" accept=".xlsx,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden tabindex="-1" aria-label="Escolher planilha para importar">
+
+<script>
+  window.VF_BASE = "https://vitorfariasvf.github.io/VF-Tools/";
+  window.VFTour = { what: "esta ferramenta", steps: [
+    { sel: "#newphoto", pose: "busca", text: "Toque aqui para fotografar uma nota. Você confere o que foi lido e salva em um toque." },
+    { sel: "#tabs", pose: "acao", text: "Lançamentos, relatórios e a planilha Excel ficam nestas abas." },
+    { sel: "#h-total", pose: "cats", text: "Aqui está o total do mês. Os relatórios mostram para onde o dinheiro foi." },
+    { sel: "#tabs a[data-v=backup]", pose: "amor", text: "Baixe a planilha de vez em quando: é o seu backup. As versões guardam o histórico e dá para voltar atrás." },
+    { sel: ".foot", pose: "fim", text: "Seus gastos e fotos nunca saem daqui. Bom controle!" }
+  ] };
+</script>
+<script src="tool.js"></script>
+<script src="https://vitorfariasvf.github.io/VF-Tools/dog.js"></script>
+<script src="https://vitorfariasvf.github.io/VF-Tools/help.js"></script>
+<script src="https://vitorfariasvf.github.io/VF-Tools/motion.js"></script>
+<script src="lib.js"></script>
+<script src="db.js"></script>
+<script src="xlsx.js"></script>
+<script src="qr.js"></script>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

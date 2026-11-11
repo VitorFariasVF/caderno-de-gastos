@@ -1,0 +1,12 @@
+{
+  "name": "Caderno de Gastos",
+  "short_name": "Gastos",
+  "description": "Anote gastos por foto da nota, digitando ou importando planilha. Excel, versões e relatórios.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#14110f",
+  "theme_color": "#14110f",
+  "lang": "pt-BR",
+  "icons": [{ "src": "https://vitorfariasvf.github.io/VF-Tools/assets/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
