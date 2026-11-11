@@ -1,6 +1,6 @@
 # Caderno de Gastos
 
-Anote gastos por **foto da nota**, digitando ou importando planilha. Planilha Excel, **versões** e **relatórios**. Tudo no navegador: gastos, fotos e senhas nunca são enviados a servidores.
+Anote gastos por **foto da nota**, digitando ou importando planilha. Planilha Excel, **versões** e **relatórios**. Tudo no navegador: seus gastos e fotos nunca são enviados a servidores.
 
 Parte do [VF Tools](https://vitorfariasvf.github.io/VF-Tools/). Segue o [padrão de design](https://github.com/VitorFariasVF/VF-Tools/blob/Main/DESIGN.md) do site.
 
